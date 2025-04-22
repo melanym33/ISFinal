@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burrito Boss</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #f0e6d2; /* Sandy background */
+            overflow: hidden; /* Prevent scrolling */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #3a3a3a;
+        }
+        .game-container {
+            background-color: #fff;
+            border: 8px solid #8b4513; /* Brown border */
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            width: 95%;
+            max-width: 1000px;
+            height: 600px; /* Fixed height */
+            position: relative;
+            overflow: hidden; /* Keep elements inside */
+            display: flex;
+            flex-direction: column;
+        }
+        .counter-area {
+            background-color: #c19a6b; /* Wooden counter color */
+            border-bottom: 6px solid #8b4513;
+            height: 200px; /* Area for stations */
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px;
+            position: relative; /* For player positioning */
+        }
+        .customer-area {
+            flex-grow: 1; /* Takes remaining space */
+            background-color: #f5f5f5; /* Light grey */
+            position: relative;
+            overflow: hidden; /* Keep customers inside */
+            border-top: 4px dashed #aaa;
+        }
+        .station {
+            width: 80px;
+            height: 80px;
+            border: 4px solid #5a3a22;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            text-align: center;
+            cursor: pointer; /* Indicate interactivity */
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative; /* For selection indicator */
+            background-color: #e0e0e0; /* Default station color */
+        }
+        .station.selected {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px 5px #ffcc00; /* Glow effect */
+            border-color: #ffcc00;
+        }
+        #station-tortilla { background-color: #f5deb3; } /* Wheat */
+        #station-meat { background-color: #d2691e; color: white; } /* Chocolate (for meat) */
+        #station-veggies { background-color: #90ee90; } /* LightGreen */
+        #station-salsa { background-color: #ff6347; } /* Tomato */
+        #station-cheese { background-color: #ffd700; } /* Gold */
+        #station-finish { background-color: #4caf50; color: white; } /* Green */
+
+        .player {
+            position: absolute;
+            bottom: 10px;
+            left: 50%; /* Start near center */
+            transform: translateX(-50%);
+            width: 50px;
+            height: 70px;
+            background-color: #add8e6; /* Light blue shirt */
+            border-radius: 5px;
+            text-align: center;
+            font-size: 20px; /* For hat/apron emoji */
+            line-height: 1; /* Adjust line height for emojis */
+            z-index: 10;
+            /* Apron and Hat representation */
+            content: '🧑‍🍳'; /* Chef emoji */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .customer {
+            position: absolute;
+            bottom: 20px; /* Position above the counter line */
+            width: 60px;
+            height: 80px;
+            background-color: #ccc;
+            border: 2px solid #555;
+            border-radius: 5px;
+            transition: left 0.5s ease-in-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px; /* Emoji size */
+            z-index: 5;
+        }
+        .customer-order {
+            position: absolute;
+            bottom: 100%; /* Position above the customer */
+            left: 50%;
+            transform: translateX(-50%) translateY(-10px);
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #aaa;
+            border-radius: 5px;
+            padding: 5px 8px;
+            font-size: 10px;
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .customer:hover .customer-order, .customer.active .customer-order {
+            opacity: 1;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background-color: #a0522d; /* Sienna */
+            color: white;
+            font-size: 14px;
+            border-bottom: 4px solid #5a3a22;
+        }
+
+        .message-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 100;
+            font-size: 24px;
+            padding: 20px;
+        }
+        .message-overlay button {
+            font-family: 'Press Start 2P', cursive;
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 20px;
+            background-color: #4caf50;
+            color: white;
+            border: 2px solid white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .message-overlay button:hover {
+            background-color: #45a049;
+        }
+
+        .tip-animation {
+            position: absolute;
+            font-size: 20px;
+            animation: floatUp 1.5s ease-out forwards;
+            z-index: 50;
+            color: gold;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-80px); opacity: 0; }
+        }
+
+        .boss {
+            position: absolute;
+            bottom: 10px;
+            left: -100px; /* Start off screen */
+            width: 80px;
+            height: 100px;
+            background-color: #555; /* Dark suit */
+            color: white;
+            border: 3px solid black;
+            border-radius: 5px;
+            font-size: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: left 1s ease-in-out;
+            z-index: 90;
+            content: '😠'; /* Angry face */
+        }
+        .boss.active {
+            left: 20px; /* Slide in */
+        }
+
+        /* Difficulty Buttons */
+        .difficulty-selection button {
+             font-family: 'Press Start 2P', cursive;
+             padding: 8px 15px;
+             font-size: 12px;
+             margin: 0 10px;
+             background-color: #ffcc00;
+             color: #3a3a3a;
+             border: 2px solid #3a3a3a;
+             border-radius: 5px;
+             cursor: pointer;
+             transition: background-color 0.2s, transform 0.1s;
+        }
+         .difficulty-selection button:hover {
+             background-color: #e6b800;
+         }
+         .difficulty-selection button:active {
+             transform: scale(0.95);
+         }
+
+
+    </style>
+</head>
+<body>
+    <div id="game-container" class="game-container">
+        <div class="status-bar">
+            <div>Score: <span id="score">0</span></div>
+            <div>Level: <span id="level">Easy</span></div>
+            <div>Lives: <span id="lives">❤️❤️❤️❤️❤️</span></div>
+        </div>
+
+        <div id="customer-area" class="customer-area">
+            </div>
+
+        <div class="counter-area">
+            <div id="station-tortilla" class="station" data-ingredient="Tortilla">Tortilla</div>
+            <div id="station-meat" class="station" data-ingredient="Meat">Meat</div>
+            <div id="station-veggies" class="station" data-ingredient="Veggies">Veggies</div>
+            <div id="station-salsa" class="station" data-ingredient="Salsa">Salsa</div>
+            <div id="station-cheese" class="station" data-ingredient="Cheese">Cheese</div>
+            <div id="station-finish" class="station" data-ingredient="Finish">Finish!</div>
+            <div id="player" class="player">🧑‍🍳</div>
+        </div>
+
+        <div id="message-overlay" class="message-overlay">
+            <div id="message-content">
+                <h2>Welcome to Burrito Boss!</h2>
+                <p>Use Arrow Keys to move between stations.</p>
+                <p>Press SPACE to add the selected ingredient.</p>
+                <p>Select 'Finish!' to serve the customer.</p>
+                <p>Make the burritos correctly to earn tips!</p>
+                <p>5 mistakes and you're fired!</p>
+                <div class="difficulty-selection mt-4">
+                    <button onclick="startGame('Easy')">Easy</button>
+                    <button onclick="startGame('Medium')">Medium</button>
+                    <button onclick="startGame('Hard')">Hard</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="boss" class="boss">😠</div>
+
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const gameContainer = document.getElementById('game-container');
+        const scoreDisplay = document.getElementById('score');
+        const levelDisplay = document.getElementById('level');
+        const livesDisplay = document.getElementById('lives');
+        const customerArea = document.getElementById('customer-area');
+        const stations = document.querySelectorAll('.station');
+        const playerElement = document.getElementById('player');
+        const messageOverlay = document.getElementById('message-overlay');
+        const messageContent = document.getElementById('message-content');
+        const bossElement = document.getElementById('boss');
+
+        // --- Game State ---
+        let score = 0;
+        let lives = 5;
+        let currentLevel = 'Easy';
+        let gameActive = false;
+        let selectedStationIndex = 0;
+        let currentBurrito = [];
+        let activeCustomers = []; // { id, element, order, timer }
+        let customerCounter = 0; // Unique ID for customers
+        let customerSpawnTimer = null;
+        let difficultySettings = {
+            Easy: { spawnRate: 5000, maxCustomers: 3, orderComplexity: [2, 3] }, // ms, max on screen, min/max ingredients
+            Medium: { spawnRate: 3500, maxCustomers: 4, orderComplexity: [3, 4] },
+            Hard: { spawnRate: 2500, maxCustomers: 5, orderComplexity: [4, 5] }
+        };
+        const availableIngredients = ["Tortilla", "Meat", "Veggies", "Salsa", "Cheese"];
+        const heartEmoji = '❤️';
+
+        // --- Game Functions ---
+
+        function updateUI() {
+            scoreDisplay.textContent = score;
+            levelDisplay.textContent = currentLevel;
+            livesDisplay.textContent = heartEmoji.repeat(lives);
+
+            // Update station selection visual
+            stations.forEach((station, index) => {
+                station.classList.toggle('selected', index === selectedStationIndex);
+            });
+
+            // Move player visually (optional, could just highlight station)
+            const selectedStation = stations[selectedStationIndex];
+            if (selectedStation) {
+                playerElement.style.left = `${selectedStation.offsetLeft + selectedStation.offsetWidth / 2}px`;
+            }
+        }
+
+        function showMessage(htmlContent, showButtons = true) {
+            messageContent.innerHTML = htmlContent;
+            if (!showButtons) {
+                 const buttons = messageContent.querySelectorAll('button');
+                 buttons.forEach(btn => btn.style.display = 'none');
+            }
+            messageOverlay.style.display = 'flex';
+            gameActive = false; // Pause game when message shows
+            if (customerSpawnTimer) clearTimeout(customerSpawnTimer); // Stop spawning customers
+            activeCustomers.forEach(c => clearTimeout(c.timer)); // Stop customer timers
+        }
+
+        function hideMessage() {
+            messageOverlay.style.display = 'none';
+        }
+
+        function getRandomIngredientOrder() {
+            const complexity = difficultySettings[currentLevel].orderComplexity;
+            const numIngredients = Math.floor(Math.random() * (complexity[1] - complexity[0] + 1)) + complexity[0];
+            const shuffled = [...availableIngredients].sort(() => 0.5 - Math.random());
+            // Always include Tortilla first if it's part of the order logic (implicitly required)
+            // For simplicity here, just pick random ones. A real game might enforce tortilla.
+            return shuffled.slice(0, numIngredients);
+        }
+
+        function spawnCustomer() {
+            if (!gameActive || activeCustomers.length >= difficultySettings[currentLevel].maxCustomers) {
+                // Reschedule if game paused or max customers reached
+                if (gameActive) {
+                    customerSpawnTimer = setTimeout(spawnCustomer, difficultySettings[currentLevel].spawnRate / 2);
+                }
+                return;
+            }
+
+            customerCounter++;
+            const customerId = `customer-${customerCounter}`;
+            const customerElement = document.createElement('div');
+            customerElement.id = customerId;
+            customerElement.classList.add('customer');
+            // Start off-screen right
+            customerElement.style.left = `${customerArea.offsetWidth}px`;
+            customerElement.style.bottom = `${Math.random() * (customerArea.offsetHeight - 120) + 10}px`; // Random height, avoid overlap with counter line
+
+            // Add random emoji for variety
+            const customerEmojis = ['😀', '🙂', '😐', '🤠', '😎', '🤓'];
+            customerElement.textContent = customerEmojis[Math.floor(Math.random() * customerEmojis.length)];
+
+
+            const order = getRandomIngredientOrder();
+            const orderElement = document.createElement('div');
+            orderElement.classList.add('customer-order');
+            orderElement.textContent = `Order: ${order.join(', ')}`;
+            customerElement.appendChild(orderElement);
+
+            customerArea.appendChild(customerElement);
+
+            // Animate customer walking in
+            setTimeout(() => {
+                if (document.getElementById(customerId)) { // Check if element still exists
+                     customerElement.style.left = `${customerArea.offsetWidth - 80 - (activeCustomers.length * 70)}px`; // Line up from right
+                }
+            }, 100); // Short delay before moving
+
+            // Add to active customers
+            const customerData = {
+                id: customerId,
+                element: customerElement,
+                order: order,
+                timer: null // Could add a timer for patience later
+            };
+            activeCustomers.push(customerData);
+
+             // Show order popup briefly when they arrive
+            customerElement.classList.add('active');
+            setTimeout(() => {
+                if (customerElement) customerElement.classList.remove('active');
+            }, 2000); // Show order for 2 seconds
+
+
+            // Schedule next customer
+            customerSpawnTimer = setTimeout(spawnCustomer, difficultySettings[currentLevel].spawnRate);
+        }
+
+        function removeCustomer(customerData, success) {
+            // Remove from active list
+            activeCustomers = activeCustomers.filter(c => c.id !== customerData.id);
+
+            // Visual feedback
+            if (success) {
+                customerData.element.textContent = '😊'; // Happy face
+                createTipAnimation(customerData.element);
+            } else {
+                customerData.element.textContent = '😠'; // Angry face
+            }
+
+            // Animate customer leaving (move off-screen left)
+            customerData.element.style.left = '-100px';
+
+            // Remove element after animation
+            setTimeout(() => {
+                if (customerData.element.parentNode) {
+                    customerData.element.parentNode.removeChild(customerData.element);
+                }
+                 // Re-position remaining customers (optional, can get complex)
+                repositionCustomers();
+            }, 500); // Match CSS transition time
+        }
+
+        function repositionCustomers() {
+             activeCustomers.forEach((cust, index) => {
+                 if (cust.element) {
+                     cust.element.style.left = `${customerArea.offsetWidth - 80 - (index * 70)}px`;
+                 }
+             });
+        }
+
+        function createTipAnimation(customerElement) {
+            const tip = document.createElement('div');
+            tip.textContent = '💰'; // Tip emoji
+            tip.classList.add('tip-animation');
+            tip.style.left = `${customerElement.offsetLeft + customerElement.offsetWidth / 2 - 10}px`;
+            tip.style.top = `${customerElement.offsetTop}px`; // Start near customer top
+            customerArea.appendChild(tip);
+
+            // Remove the tip element after animation
+            setTimeout(() => {
+                if (tip.parentNode) {
+                    tip.parentNode.removeChild(tip);
+                }
+            }, 1500); // Match animation duration
+        }
+
+
+        function checkOrder() {
+            if (activeCustomers.length === 0) {
+                console.log("No customers waiting!");
+                currentBurrito = []; // Reset burrito even if no customer
+                return;
+            }
+
+            // Assume we serve the first customer in line (simplest logic)
+            const customerToServe = activeCustomers[0];
+
+            // Simple check: compare sorted arrays of ingredients
+            const correctOrder = customerToServe.order.slice().sort().join(',');
+            const madeOrder = currentBurrito.slice().sort().join(',');
+
+            if (correctOrder === madeOrder) {
+                // Success!
+                score += 10 + customerToServe.order.length; // More points for complex orders
+                console.log("Order Correct!");
+                removeCustomer(customerToServe, true);
+            } else {
+                // Failure!
+                lives--;
+                console.log("Order Incorrect!");
+                console.log("Expected:", customerToServe.order);
+                console.log("Got:", currentBurrito);
+                removeCustomer(customerToServe, false);
+                if (lives <= 0) {
+                    gameOver();
+                    return; // Stop further processing
+                }
+            }
+
+            currentBurrito = []; // Reset for next order
+            updateUI();
+        }
+
+        function gameOver() {
+            console.log("Game Over!");
+            gameActive = false;
+            if (customerSpawnTimer) clearTimeout(customerSpawnTimer);
+            activeCustomers.forEach(c => clearTimeout(c.timer));
+
+            // Show boss animation
+            bossElement.classList.add('active');
+
+            showMessage(`
+                <h2>You're Fired!</h2>
+                <p>Final Score: ${score}</p>
+                <p>The boss is not happy.</p>
+                <div class="difficulty-selection mt-4">
+                     <button onclick="startGame('Easy')">Try Easy</button>
+                     <button onclick="startGame('Medium')">Try Medium</button>
+                     <button onclick="startGame('Hard')">Try Hard</button>
+                </div>
+            `, true);
+        }
+
+        function resetGame(difficulty) {
+            score = 0;
+            lives = 5;
+            currentLevel = difficulty;
+            selectedStationIndex = 0;
+            currentBurrito = [];
+            activeCustomers.forEach(c => {
+                if (c.element.parentNode) c.element.parentNode.removeChild(c.element);
+                clearTimeout(c.timer);
+            });
+            activeCustomers = [];
+            customerCounter = 0;
+            if (customerSpawnTimer) clearTimeout(customerSpawnTimer);
+            bossElement.classList.remove('active'); // Hide boss
+            updateUI();
+        }
+
+        function startGame(difficulty) {
+            resetGame(difficulty);
+            hideMessage();
+            gameActive = true;
+            // Start spawning customers after a short delay
+            customerSpawnTimer = setTimeout(spawnCustomer, 1500);
+            updateUI(); // Initial UI setup
+        }
+
+        // --- Event Listeners ---
+        document.addEventListener('keydown', (e) => {
+            if (!gameActive) return; // Only handle keys if game is active
+
+            let handled = false;
+            if (e.key === 'ArrowRight') {
+                selectedStationIndex = (selectedStationIndex + 1) % stations.length;
+                handled = true;
+            } else if (e.key === 'ArrowLeft') {
+                selectedStationIndex = (selectedStationIndex - 1 + stations.length) % stations.length;
+                 handled = true;
+            } else if (e.key === ' ' || e.key === 'Spacebar') { // Spacebar
+                const selectedStation = stations[selectedStationIndex];
+                const ingredient = selectedStation.dataset.ingredient;
+
+                if (ingredient === 'Finish') {
+                    if (currentBurrito.length > 0) { // Can only finish if something was added
+                        console.log("Finishing burrito:", currentBurrito);
+                        checkOrder();
+                    } else {
+                        console.log("Burrito is empty!"); // Add feedback later
+                    }
+                } else if (ingredient) {
+                    // Prevent adding the same ingredient twice directly (optional rule)
+                    // if (!currentBurrito.includes(ingredient)) {
+                         currentBurrito.push(ingredient);
+                         console.log("Added:", ingredient, "-> Current:", currentBurrito);
+                         // Add visual feedback (e.g., flash station color)
+                         selectedStation.style.animation = 'flash 0.3s ease';
+                         setTimeout(() => selectedStation.style.animation = '', 300);
+                    // } else {
+                    //     console.log(ingredient, "already added!");
+                    // }
+                }
+                 handled = true;
+            }
+
+            if (handled) {
+                e.preventDefault(); // Prevent default browser actions (like scrolling with space)
+                updateUI();
+            }
+        });
+
+        // Add flashing animation style
+        const styleSheet = document.createElement("style");
+        styleSheet.type = "text/css";
+        styleSheet.innerText = `
+            @keyframes flash {
+                0% { opacity: 1; }
+                50% { opacity: 0.5; transform: scale(1.05); }
+                100% { opacity: 1; transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(styleSheet);
+
+
+        // --- Initial Setup ---
+        updateUI(); // Show initial state (5 lives, 0 score)
+        // Game starts via button click in the message overlay
+
+    </script>
+</body>
+</html>
